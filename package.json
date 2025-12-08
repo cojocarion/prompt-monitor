@@ -1,0 +1,45 @@
+{
+  "name": "prompt-monitor-extension",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Browser extension to monitor ChatGPT prompts for email addresses",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:prod": "tsc -b && vite build && bun run zip",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "zip": "cd dist && zip -r ../prompt-monitor-extension.zip ."
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.556.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-redux": "^9.2.0",
+    "tailwind-merge": "^3.4.0",
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.33",
+    "@eslint/js": "^9.39.1",
+    "@tailwindcss/vite": "^4.1.17",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@types/webextension-polyfill": "^0.12.4",
+    "@vitejs/plugin-react": "4",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "5"
+  }
+}
