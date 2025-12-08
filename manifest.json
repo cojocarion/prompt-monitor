@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Monitor",
+  "description": "Monitor ChatGPT prompts for sensitive data like email addresses",
+  "version": "1.0.0",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Prompt Monitor"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["src/content/main-world.ts"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_start"
+    }
+  ]
+}
+
