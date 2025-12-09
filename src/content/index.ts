@@ -1,13 +1,41 @@
 import browser from "webextension-polyfill";
-import { MessageType } from "@/shared/types";
+import { MessageType, type StateResponse } from "@/shared/types";
 
 interface DetectionEvent {
   type: string;
+  action: "anonymized" | "sent_original";
   prompt: string;
   emails: string[];
   url: string;
   timestamp: number;
 }
+
+// Load and sync dismissed emails to main world
+async function syncDismissedEmails(): Promise<void> {
+  try {
+    const response = (await browser.runtime.sendMessage({
+      type: MessageType.GET_STATE,
+    })) as StateResponse | undefined;
+
+    if (response?.dismissedEmails) {
+      const emails = response.dismissedEmails
+        .filter((d) => d.expiresAt > Date.now())
+        .map((d) => d.email);
+
+      window.dispatchEvent(
+        new CustomEvent("promptMonitorDismissedUpdate", {
+          detail: { emails },
+        })
+      );
+    }
+  } catch (error) {
+    console.error("[Prompt Monitor] Error syncing dismissed emails:", error);
+  }
+}
+
+// Sync on load and periodically
+syncDismissedEmails();
+setInterval(syncDismissedEmails, 60000); // Every minute
 
 window.addEventListener("promptMonitorDetection", async (event) => {
   const customEvent = event as CustomEvent<DetectionEvent>;
@@ -21,10 +49,11 @@ window.addEventListener("promptMonitorDetection", async (event) => {
           body: data.prompt,
           url: data.url,
           detectedEmails: data.emails,
+          action: data.action,
         },
       });
 
-      showAlert(data.emails.length);
+      showAlert(data.emails.length, data.action);
     } catch (error) {
       console.error("[Prompt Monitor] Error sending to background:", error);
     }
@@ -34,69 +63,47 @@ window.addEventListener("promptMonitorDetection", async (event) => {
 /**
  * Show alert notification to user
  */
-function showAlert(count: number): void {
-  // Create alert element
+function showAlert(
+  count: number,
+  action: "anonymized" | "sent_original"
+): void {
+  const isAnonymized = action === "anonymized";
+  const bgColor = isAnonymized
+    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+    : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)";
+  const icon = isAnonymized ? "🛡️" : "⚠️";
+  const title = isAnonymized ? "Email(s) Anonymized" : "Email(s) Sent As-Is";
+  const message = isAnonymized
+    ? `${count} email address${
+        count > 1 ? "es were" : " was"
+      } anonymized before sending.`
+    : `${count} email address${
+        count > 1 ? "es were" : " was"
+      } sent without anonymization.`;
+
   const alert = document.createElement("div");
   alert.id = "prompt-monitor-alert";
   alert.innerHTML = `
     <div style="
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      padding: 16px 24px;
-      border-radius: 12px;
+      position: fixed; top: 20px; right: 20px;
+      background: ${bgColor}; color: white;
+      padding: 16px 24px; border-radius: 12px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
       z-index: 999999;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      animation: slideIn 0.3s ease-out;
-      max-width: 400px;
+      font-size: 14px; display: flex; align-items: center; gap: 12px;
+      animation: slideIn 0.3s ease-out; max-width: 400px;
     ">
-      <div style="
-        width: 40px;
-        height: 40px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      ">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-      </div>
+      <div style="font-size: 24px;">${icon}</div>
       <div>
-        <div style="font-weight: 600; margin-bottom: 4px;">
-          🛡️ Email${count > 1 ? "s" : ""} Detected & Protected
-        </div>
-        <div style="opacity: 0.9; font-size: 13px;">
-          ${count} email address${
-    count > 1 ? "es were" : " was"
-  } anonymized before sending.
-          Click the extension icon for details.
-        </div>
+        <div style="font-weight: 600; margin-bottom: 4px;">${title}</div>
+        <div style="opacity: 0.9; font-size: 13px;">${message}</div>
       </div>
       <button onclick="this.parentElement.parentElement.remove()" style="
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        margin-left: 8px;
+        background: rgba(255, 255, 255, 0.2); border: none; color: white;
+        width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; margin-left: 8px;
       ">✕</button>
     </div>
     <style>
@@ -107,18 +114,14 @@ function showAlert(count: number): void {
     </style>
   `;
 
-  // Remove existing alert if any
   document.getElementById("prompt-monitor-alert")?.remove();
-
-  // Add to page
   document.body.appendChild(alert);
 
-  // Auto-remove after 8 seconds
   setTimeout(() => {
     alert.style.transition = "opacity 0.3s ease-out";
     alert.style.opacity = "0";
     setTimeout(() => alert.remove(), 300);
-  }, 8000);
+  }, 5000);
 }
 
 console.log("[Prompt Monitor] Content script loaded (isolated world)");
