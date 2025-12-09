@@ -94,7 +94,6 @@ function showConfirmationPopup(emails: string[]): Promise<UserDecision> {
               .map(
                 (email) => `
               <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0;">
-                <span style="color: #f59e0b;">📧</span>
                 <code style="background: rgba(245, 158, 11, 0.2); padding: 2px 8px;
                   border-radius: 4px; font-size: 13px; color: #fbbf24;">${email}</code>
               </div>
@@ -107,12 +106,12 @@ function showConfirmationPopup(emails: string[]): Promise<UserDecision> {
             <button id="pm-btn-anonymize" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);
               color: white; border: none; padding: 12px 20px; border-radius: 8px;
               font-size: 14px; font-weight: 500; cursor: pointer;">
-              🛡️ Send Anonymized (Recommended)
+             Send Anonymized (Recommended)
             </button>
             <button id="pm-btn-original" style="background: #3b3b4f; color: white;
               border: 1px solid rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 8px;
               font-size: 14px; font-weight: 500; cursor: pointer;">
-              ⚠️ Send Original (Not Recommended)
+              Send Original (Not Recommended)
             </button>
             <button id="pm-btn-cancel" style="background: transparent; color: #a0a0a0;
               border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;">
@@ -252,6 +251,9 @@ window.fetch = async function (
             },
           })
         );
+
+        // Send original request
+        return originalFetch.apply(this, [input, init]);
       }
     } catch (e) {
       log("Error processing request:", e);
