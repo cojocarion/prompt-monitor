@@ -37,6 +37,27 @@ async function syncDismissedEmails(): Promise<void> {
 syncDismissedEmails();
 setInterval(syncDismissedEmails, 60000); // Every minute
 
+// Listen for dismiss requests from main world
+window.addEventListener("promptMonitorDismiss", async (event) => {
+  const customEvent = event as CustomEvent<{ emails: string[] }>;
+  const { emails } = customEvent.detail;
+
+  try {
+    // Dismiss each email
+    for (const email of emails) {
+      await browser.runtime.sendMessage({
+        type: MessageType.DISMISS_EMAIL,
+        payload: { email },
+      });
+    }
+
+    // Sync dismissed emails back to main world
+    await syncDismissedEmails();
+  } catch (error) {
+    console.error("[Prompt Monitor] Error dismissing emails:", error);
+  }
+});
+
 window.addEventListener("promptMonitorDetection", async (event) => {
   const customEvent = event as CustomEvent<DetectionEvent>;
   const data = customEvent.detail;
@@ -123,5 +144,3 @@ function showAlert(
     setTimeout(() => alert.remove(), 300);
   }, 5000);
 }
-
-console.log("[Prompt Monitor] Content script loaded (isolated world)");

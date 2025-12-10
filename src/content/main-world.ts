@@ -50,7 +50,7 @@ function isChatRequest(url: string): boolean {
   );
 }
 
-type UserDecision = "anonymize" | "send_original" | "cancel";
+type UserDecision = "anonymize" | "send_original" | "cancel" | "dismiss";
 
 function showConfirmationPopup(emails: string[]): Promise<UserDecision> {
   return new Promise((resolve) => {
@@ -106,12 +106,17 @@ function showConfirmationPopup(emails: string[]): Promise<UserDecision> {
             <button id="pm-btn-anonymize" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);
               color: white; border: none; padding: 12px 20px; border-radius: 8px;
               font-size: 14px; font-weight: 500; cursor: pointer;">
-             Send Anonymized (Recommended)
+              Send Anonymized (Recommended)
             </button>
             <button id="pm-btn-original" style="background: #3b3b4f; color: white;
               border: 1px solid rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 8px;
               font-size: 14px; font-weight: 500; cursor: pointer;">
               Send Original (Not Recommended)
+            </button>
+            <button id="pm-btn-dismiss" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+              color: white; border: none; padding: 12px 20px; border-radius: 8px;
+              font-size: 14px; font-weight: 500; cursor: pointer;">
+              Dismiss for 24h & Send Original
             </button>
             <button id="pm-btn-cancel" style="background: transparent; color: #a0a0a0;
               border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;">
@@ -137,6 +142,10 @@ function showConfirmationPopup(emails: string[]): Promise<UserDecision> {
         cleanup();
         resolve("send_original");
       });
+    document.getElementById("pm-btn-dismiss")?.addEventListener("click", () => {
+      cleanup();
+      resolve("dismiss");
+    });
     document.getElementById("pm-btn-cancel")?.addEventListener("click", () => {
       cleanup();
       resolve("cancel");
@@ -236,6 +245,37 @@ window.fetch = async function (
             input,
             { ...init, body: anonymizedBody },
           ]);
+        }
+
+        if (decision === "dismiss") {
+          // Add emails to local dismissed set immediately
+          emails.forEach((email) => dismissedEmails.add(email.toLowerCase()));
+
+          // Tell content script to persist the dismissal
+          window.dispatchEvent(
+            new CustomEvent("promptMonitorDismiss", {
+              detail: { emails },
+            })
+          );
+
+          // Also add to history
+          window.dispatchEvent(
+            new CustomEvent("promptMonitorDetection", {
+              detail: {
+                type: "PROMPT_MONITOR_DETECTION",
+                action: "sent_original",
+                prompt,
+                emails,
+                url,
+                timestamp: Date.now(),
+              },
+            })
+          );
+
+          log("✅ DISMISSED & SENDING ORIGINAL");
+
+          // Send original request
+          return originalFetch.apply(this, [input, init]);
         }
 
         // User chose send_original
